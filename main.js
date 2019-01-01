@@ -120,26 +120,35 @@ var app = http.createServer(function (request, response) {
         if (error2) {
           throw error2;
         }
-        var title = topic[0].title;
-        var description = topic[0].description;
-        var list = template.list(topics);
-        var html = template.HTML(title, list,
-          `
-            <form action="/update_process" method="post">
-              <input type="hidden" name="id" value="${topic[0].id}">
-              <p><input type="text" name="title" placeholder="title" value="${title}"></p>
-              <p>
-                <textarea name="description" placeholder="description">${description}</textarea>
-              </p>
-              <p>
-                <input type="submit">
-              </p>
-            </form>
-            `,
-          `<a href="/create">create</a> <a href="/update?id=${queryData.id}">update</a>`
-        );
-        response.writeHead(200);
-        response.end(html);
+        db.query('SELECT * from author', function (error3, authors) {
+          if (error3) {
+            throw error3;
+          }
+  
+          var title = topic[0].title;
+          var description = topic[0].description;
+          var list = template.list(topics);
+          var html = template.HTML(title, list,
+            `
+              <form action="/update_process" method="post">
+                <input type="hidden" name="id" value="${topic[0].id}">
+                <p><input type="text" name="title" placeholder="title" value="${title}"></p>
+                <p>
+                  <textarea name="description" placeholder="description">${description}</textarea>
+                </p>
+                <p>
+                ${template.authorSelect(authors, topic[0].author_id)}
+                </p>
+                <p>
+                  <input type="submit">
+                </p>
+              </form>
+              `,
+            `<a href="/create">create</a> <a href="/update?id=${queryData.id}">update</a>`
+          );
+          response.writeHead(200);
+          response.end(html);
+        });
       });
     });
   } else if (pathname === '/update_process') {
@@ -149,15 +158,13 @@ var app = http.createServer(function (request, response) {
     });
     request.on('end', function () {
       var post = qs.parse(body);
-      var id = post.id;
-      var title = post.title;
-      var description = post.description;
 
-      db.query(`UPDATE topic SET title=?, description=? WHERE id=?;`, [title, description, id], function(error, result) {
+      db.query(`UPDATE topic SET title=?, description=?, author_id=? WHERE id=?;`,
+       [post.title, post.description, post.author, post.id], function(error, result) {
         if (error) {
           throw error;
         }
-        response.writeHead(302, { Location: `/?id=${id}` });
+        response.writeHead(302, { Location: `/?id=${post.id}` });
         response.end();
       });
     });
