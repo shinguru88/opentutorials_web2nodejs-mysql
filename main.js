@@ -38,7 +38,7 @@ var app = http.createServer(function (request, response) {
         if (error) {
           throw error;
         }
-        db.query('SELECT * from topic WHERE id=?', [queryData.id], function (error2, topic) {
+        db.query('SELECT * from topic LEFT JOIN author ON author.id=topic.author_id WHERE topic.id=?', [queryData.id], function (error2, topic) {
           if (error2) {
             throw error2;
           }
@@ -46,7 +46,10 @@ var app = http.createServer(function (request, response) {
           var description = topic[0].description;
           var list = template.list(topics);
           var html = template.HTML(title, list,
-            `<h2>${title}</h2>${description}`,
+            `<h2>${title}</h2>
+            ${description}
+            <p>by ${topic[0].name}</p>
+            `,
             ` <a href="/create">create</a>
                 <a href="/update?id=${queryData.id}">update</a>
                 <form action="delete_process" method="post">
@@ -64,21 +67,30 @@ var app = http.createServer(function (request, response) {
       if (error) {
         throw error;
       }
-      var title = 'WEB - create';
-      var list = template.list(topics);
-      var html = template.HTML(title, list, `
-          <form action="/create_process" method="post">
-            <p><input type="text" name="title" placeholder="title"></p>
-            <p>
-              <textarea name="description" placeholder="description"></textarea>
-            </p>
-            <p>
-              <input type="submit">
-            </p>
-          </form>
-        `, '');
-      response.writeHead(200);
-      response.end(html);
+      db.query('SELECT * from author', function (error2, authors) {
+        if (error2) {
+          throw error;
+        }
+  
+        var title = 'WEB - create';
+        var list = template.list(topics);
+        var html = template.HTML(title, list, `
+            <form action="/create_process" method="post">
+              <p><input type="text" name="title" placeholder="title"></p>
+              <p>
+                <textarea name="description" placeholder="description"></textarea>
+              </p>
+              <p>
+              ${template.authorSelect(authors)}
+              </p>
+              <p>
+                <input type="submit">
+              </p>
+            </form>
+          `, '');
+        response.writeHead(200);
+        response.end(html);
+      });
     });
   } else if (pathname === '/create_process') {
     var body = '';
@@ -90,7 +102,7 @@ var app = http.createServer(function (request, response) {
       var title = post.title;
       var description = post.description;
       db.query(`INSERT INTO topic (title, description, created, author_id)
-       VALUES(?,?, NOW(), ?);`, [title, description, 1], function (error, result) {
+       VALUES(?,?, NOW(), ?);`, [title, description, post.author], function (error, result) {
           if (error) {
             throw error;
           }
